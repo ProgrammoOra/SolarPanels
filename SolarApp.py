@@ -25,7 +25,7 @@ st.title("☀️ Solar Position & Energy Estimation")
 
 # User inputs
 selected_date = st.date_input("📅 Choose a Date:", value=default_date)
-selected_time = st.time_input("⏰ Choose a Time:")#, value=default_time) # rimetteva sempr eil valore di default
+selected_time = st.time_input("⏰ Choose a Time:", value=default_time)
 
 # Convert to datetime
 selected_datetime = datetime.datetime.combine(selected_date, selected_time, tzinfo = timezone)
