@@ -28,7 +28,7 @@ selected_date = st.date_input("📅 Choose a Date:", value=default_date)
 selected_time = st.time_input("⏰ Choose a Time:", value=default_time)
 
 # Convert to datetime
-selected_datetime = datetime.datetime.combine(selected_date, selected_time, tzinfo = timezone)
+selected_datetime = datetime.datetime.combine(selected_date, selected_time)#, tzinfo = timezone)
 st.write(f"**Selected DateTime:** {selected_datetime}")
 
 # --- Define Location ---
