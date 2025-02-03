@@ -15,7 +15,7 @@ class Panel:
         self.efficiency = efficiency
 
 # --- Default Values ---
-timezone = timezone('CET')
+timezone = timezone('Europe/Rome')
 current_datetime = datetime.datetime.now(timezone)
 default_date = current_datetime.date()
 default_time = current_datetime.time()
@@ -28,11 +28,10 @@ selected_date = st.date_input("📅 Choose a Date:", value=default_date)
 selected_time = st.time_input("⏰ Choose a Time:", value=default_time)
 
 # Convert to datetime
-selected_datetime = datetime.datetime.combine(selected_date, selected_time)#, tzinfo = timezone)
+selected_datetime = datetime.datetime.combine(selected_date, selected_time)
+selected_datetime = timezone.localize(selected_datetime)
 st.write(f"**Selected DateTime:** {selected_datetime}")
-selected_datetime = datetime.datetime.combine(selected_date, selected_time, tzinfo = timezone)
-st.write(f"**Selected DateTime:** {selected_datetime}")
-st.write(f"**timezone:** {timezone}")
+st.write(f"** timezone:** {timezone}")
 
 # --- Define Location ---
 latitude = st.number_input("🌍 Latitude", value=45.4642)
