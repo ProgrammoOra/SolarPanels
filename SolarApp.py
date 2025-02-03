@@ -22,7 +22,7 @@ current_datetime = datetime.datetime.now(timezone)
 
 
 # --- Streamlit UI ---
-st.title("☀️ Sun/Panels analysis")
+st.title("☀️ Sun & Panels")
 
 # Inizializza `st.session_state` per la data e l'ora
 if "selected_date" not in st.session_state:
@@ -120,22 +120,27 @@ panel_area = st.sidebar.number_input("Panel Area (m²)", value=6.25)
 panel_efficiency = st.sidebar.slider("Panel Efficiency (%)", 0.0, 100.0, 16.5) / 100.0
 panel = Panel(tilt=panel_tilt, azimuth=panel_azimuth, area=panel_area, efficiency= panel_efficiency)
 
-# --- Calculate Energy Production (if sun is not shadowed) ---
+# --- Calculate Power Production (if sun is not shadowed) ---
 if not shadowed:
+    # Calcola i parametri da ClearSky
+    clearsky = location.get_clearsky(time)
+    ghi = clearsky['ghi']
+    dni = clearsky['dni']
+    dhi = clearsky['dhi']
+    
     clearsky = pvlib.irradiance.get_total_irradiance(
         surface_tilt=panel_tilt,
         surface_azimuth=panel_azimuth,
-        dni=800,  # Direct Normal Irradiance (W/m²)
-        ghi=600,  # Global Horizontal Irradiance (W/m²)
-        dhi=200,  # Diffuse Horizontal Irradiance (W/m²)
+        dni=dni,  # Direct Normal Irradiance (W/m²)
+        ghi=ghi,  # Global Horizontal Irradiance (W/m²)
+        dhi=dhi,  # Diffuse Horizontal Irradiance (W/m²)
         solar_zenith=90 - sun_elevation,
         solar_azimuth=sun_azimuth
     )
     poa_irradiance = clearsky["poa_global"]
-    power_output = poa_irradiance * panel_area * panel_efficiency  # Power in Watts
-    energy = round(power_output.sum() / 1000, 2)  # Convert to kW
+    power_output = poa_irradiance.sum() * panel_area * panel_efficiency  # Power in Watts
 else:
-    energy = 0.0
+    power_output = 0.0
 
 # --- 
 
@@ -249,19 +254,25 @@ def calculate_daily_energy_with_shadow_profile(date, location, panel, shadow_pro
 date_power_output, total_energy = calculate_daily_energy_with_shadow_profile(selected_date, location, panel, shadow_profile, step='1min')
 
 # --- Display time Results ---
-st.write("## ⏰ Time Solar Results ⏰")
+st.write("## ⏰ Time Results")
 
-st.write(f"### ☀️ Solar Position:  {sun_azimuth}° , {sun_elevation}° (Azimuth , Elevation)")
+# Create two columns for side-by-side layout
+col1, col2 = st.columns(2)
 
-st.write(f"### 🌑 Is the sun blocked by shadows?     {'✅ No' if not shadowed else '❌ Yes'}")
-
-st.write(f"### 🔋 Energy Estimation: **Power Panel Output:** {round(energy*panel.efficiency,1)} kW")
+# Input for date in the first column
+with col1:
+    st.write("#### ☀️ Sun Position (Az., Elev.):")
+    st.write(f"#### 🌑 Sun in shadows?     {'✅ No' if not shadowed else '❌ Yes'}")
+with col2:
+    st.write(f"#### {sun_azimuth}° , {sun_elevation}°")
+    st.write(f"#### 🔋 **Panel Output:** {round(power_output,0)}")#*panel.efficiency,0)} W")
 
 
 #  ---- Display Date Results   ----
-st.write("## 📅  Day Solar Results")
+st.write(f"## 📅  Day Results for: {selected_date}")
 
-st.write(f"**{selected_date} available energy:** {total_energy}kWh")
+st.write(f"#### Total available energy: {total_energy}kWh")
+
 # --- Visualization ---
 st.write("### 🔋 Power available ")
 chart_power = date_power_output
