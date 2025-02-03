@@ -30,8 +30,9 @@ selected_time = st.time_input("⏰ Choose a Time:", value=default_time)
 # Convert to datetime
 selected_datetime = datetime.datetime.combine(selected_date, selected_time)#, tzinfo = timezone)
 st.write(f"**Selected DateTime:** {selected_datetime}")
-selected_datetime = datetime.datetime.combine(tzinfo = timezone)
+selected_datetime = datetime.datetime.combine(selected_date, selected_time, tzinfo = timezone)
 st.write(f"**Selected DateTime:** {selected_datetime}")
+st.write(f"**timezone:** {timezone}")
 
 # --- Define Location ---
 latitude = st.number_input("🌍 Latitude", value=45.4642)
