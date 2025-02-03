@@ -17,15 +17,44 @@ class Panel:
 # --- Default Values ---
 timezone = timezone('Europe/Rome') # 'Europe/Rome' gestisce il cambio fuso orario diversamente da 'CET' 
 current_datetime = datetime.datetime.now(timezone)
-default_date = current_datetime.date()
-default_time = current_datetime.time()
+#default_date = current_datetime.date()
+#default_time = current_datetime.time()
+
 
 # --- Streamlit UI ---
-st.title("☀️ Solar Position & Energy Estimation")
+st.title("☀️ Sun/Panels analysis")
 
-# User inputs
-selected_date = st.date_input("📅 Choose a Date:", value=default_date)
-selected_time = st.time_input("⏰ Choose a Time:", value=default_time)
+# Inizializza `st.session_state` per la data e l'ora
+if "selected_date" not in st.session_state:
+    st.session_state.selected_date = current_datetime.date()
+
+if "selected_time" not in st.session_state:
+    st.session_state.selected_time = current_datetime.time().replace(microsecond=0)  # Rimuove microsecondi
+
+# Input dell'utente
+#selected_date = st.date_input("📅 Choose a Date:", value=st.session_state.selected_date)
+#selected_time = st.time_input("⏰ Choose a Time:", value=st.session_state.selected_time)
+
+# Create two columns for side-by-side layout
+col1, col2 = st.columns(2)
+
+# Input for date in the first column
+with col1:
+    selected_date = st.date_input("📅 Choose a Date:", value=st.session_state.selected_date)
+
+# Input for time in the second column
+with col2:
+    selected_time = st.time_input("⏰ Choose a Time:", value=st.session_state.selected_time)
+
+
+# Aggiorna `st.session_state` se l'utente cambia data o ora
+if selected_date != st.session_state.selected_date:
+    st.session_state.selected_date = selected_date
+    st.rerun()  # Ensures immediate UI update
+
+if selected_time != st.session_state.selected_time:
+    st.session_state.selected_time = selected_time
+    st.rerun()  # Ensures immediate UI update
 
 # Convert to datetime
 selected_datetime = datetime.datetime.combine(selected_date, selected_time)
@@ -33,9 +62,9 @@ selected_datetime = timezone.localize(selected_datetime) # imposta la timezone c
 st.write(f"**Selected DateTime:** {selected_datetime}")
 
 # --- Define Location ---
-latitude = st.number_input("🌍 Latitude", value=45.4642)
-longitude = st.number_input("🌍 Longitude", value=9.1900)
-altitude = st.number_input("🏔️ Altitude (m)", value=144)
+latitude = st.sidebar.number_input("🌍 Latitude", value=45.4642)
+longitude = st.sidebar.number_input("🌍 Longitude", value=9.1900)
+altitude = st.sidebar.number_input("🏔️ Altitude (m)", value=144)
 location = Location(latitude, longitude, altitude=altitude, tz=timezone, name='LocationPerCalcolo')
 
 # --- User-defined Shadow Profile ---
@@ -44,7 +73,7 @@ shadow_azimuths = st.sidebar.text_area(
     "Enter shadow azimuth values (comma-separated)", "0, 151.9, 152, 209.9, 210, 287.9, 288, 360"
 )
 shadow_elevations = st.sidebar.text_area(
-    "Enter shadow elevation values (comma-separated)", "80, 80,10,10,13.5,13.5,10,10"
+    "Enter shadow elevation values (comma-separated)", "80, 80, 10, 10, 13.5, 13.5, 10, 10"
 )
 
 # Convert shadow profile to list
@@ -53,6 +82,12 @@ shadow_elevations = list(map(float, shadow_elevations.split(",")))
 shadow_profile = pd.DataFrame({"Azimuth": shadow_azimuths, "Elevation": shadow_elevations})
 # Sort by Azimuth
 shadow_profile = shadow_profile.sort_values(by="Azimuth", ascending=True)
+
+# Visualize shadow profile
+# Set "Azimuth" as the index for proper plotting
+profile = shadow_profile
+profile = shadow_profile.set_index("Azimuth")
+st.sidebar.line_chart(profile[["Elevation"]])
 
 # --- Solar Position Calculation ---
 time = pd.DatetimeIndex([selected_datetime])
@@ -216,15 +251,11 @@ date_power_output, total_energy = calculate_daily_energy_with_shadow_profile(sel
 # --- Display time Results ---
 st.write("## ⏰ Time Solar Results ⏰")
 
-st.write("### ☀️ Solar Position")
-st.write(f"**Azimuth:** {sun_azimuth}° . . . . . . **Elevation:** {sun_elevation}")
-#st.write(f"**Elevation:** {sun_elevation}°")
+st.write(f"### ☀️ Solar Position:  {sun_azimuth}° , {sun_elevation}° (Azimuth , Elevation)")
 
-st.write("### 🌑 Shadow Analysis")
-st.write(f"**Is the sun blocked by shadows?** {'✅ No' if not shadowed else '❌ Yes'}")
+st.write(f"### 🌑 Is the sun blocked by shadows?     {'✅ No' if not shadowed else '❌ Yes'}")
 
-st.write("### 🔋 Energy Estimation")
-st.write(f"**Power Output:** {energy} kW")
+st.write(f"### 🔋 Energy Estimation: **Power Panel Output:** {round(energy*panel.efficiency,1)} kW")
 
 
 #  ---- Display Date Results   ----
