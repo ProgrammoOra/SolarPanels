@@ -15,7 +15,7 @@ class Panel:
         self.efficiency = efficiency
 
 # --- Default Values ---
-timezone = timezone('Europe/Rome')
+timezone = timezone('Europe/Rome') # 'Europe/Rome' gestisce il cambio fuso orario diversamente da 'CET' 
 current_datetime = datetime.datetime.now(timezone)
 default_date = current_datetime.date()
 default_time = current_datetime.time()
@@ -29,9 +29,8 @@ selected_time = st.time_input("⏰ Choose a Time:", value=default_time)
 
 # Convert to datetime
 selected_datetime = datetime.datetime.combine(selected_date, selected_time)
-selected_datetime = timezone.localize(selected_datetime)
+selected_datetime = timezone.localize(selected_datetime) # imposta la timezone corretta
 st.write(f"**Selected DateTime:** {selected_datetime}")
-st.write(f"** timezone:** {timezone}")
 
 # --- Define Location ---
 latitude = st.number_input("🌍 Latitude", value=45.4642)
@@ -45,7 +44,7 @@ shadow_azimuths = st.sidebar.text_area(
     "Enter shadow azimuth values (comma-separated)", "0, 151.9, 152, 209.9, 210, 287.9, 288, 360"
 )
 shadow_elevations = st.sidebar.text_area(
-    "Enter shadow elevation values (comma-separated)", "80, 80,10,10,12,12,10,10"
+    "Enter shadow elevation values (comma-separated)", "80, 80,10,10,13.5,13.5,10,10"
 )
 
 # Convert shadow profile to list
