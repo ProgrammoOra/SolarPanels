@@ -258,13 +258,14 @@ st.write("## ⏰ Time Results")
 
 # Create two columns for side-by-side layout
 col1, col2 = st.columns(2)
-
 # Input for date in the first column
 with col1:
     st.write("#### ☀️ Sun Position (Az., Elev.):")
 with col2:
     st.write(f"#### {sun_azimuth}° , {sun_elevation}°")
 
+# Create two columns for side-by-side layout
+col1, col2 = st.columns(2)
 with col1:
     st.write(f"#### 🌑 Sun in shadows?     {'✅ No' if not shadowed else '❌ Yes'}")
 with col2:
