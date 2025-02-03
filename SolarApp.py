@@ -15,15 +15,13 @@ class Panel:
         self.efficiency = efficiency
 
 # --- Default Values ---
-current_datetime = datetime.datetime.now()
+timezone = timezone('CET')
+current_datetime = datetime.datetime.now(timezone)
 default_date = current_datetime.date()
 default_time = current_datetime.time()
 
 # --- Streamlit UI ---
 st.title("☀️ Solar Position & Energy Estimation")
-
-# Define Timezone
-timezone = timezone('CET')
 
 # User inputs
 selected_date = st.date_input("📅 Choose a Date:", value=default_date)
