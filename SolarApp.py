@@ -6,6 +6,7 @@ import numpy as np
 import pvlib
 from pvlib.location import Location
 from pvlib import irradiance
+import plotly.express as px
 
 class Panel:
     def __init__(self, tilt, azimuth, area, efficiency):
@@ -279,7 +280,14 @@ st.write(f"#### Total available energy: {total_energy}kWh")
 
 # --- Visualization ---
 st.write("### 🔋 Power available ")
-chart_power = date_power_output
-chart_power.index = chart_power.index.strftime("%H:%M")
-st.line_chart(chart_power)#[["azimuth", "apparent_elevation"]])
-st.write("🔄 *Modify inputs to see real-time results!*")
+
+# Create the chart
+fig = px.scatter(
+    date_power_output, x=date_power_output.index, y='poa_global',
+    labels={'x': 'Observation Date', 'poa_global': 'W'},
+    color_discrete_sequence=['green'],  # Optional: change dot color
+    size_max=10  # Optional: control dot size
+)
+
+# Display the chart in Streamlit
+st.plotly_chart(fig)
