@@ -262,9 +262,12 @@ col1, col2 = st.columns(2)
 # Input for date in the first column
 with col1:
     st.write("#### ☀️ Sun Position (Az., Elev.):")
-    st.write(f"#### 🌑 Sun in shadows?     {'✅ No' if not shadowed else '❌ Yes'}")
 with col2:
     st.write(f"#### {sun_azimuth}° , {sun_elevation}°")
+
+with col1:
+    st.write(f"#### 🌑 Sun in shadows?     {'✅ No' if not shadowed else '❌ Yes'}")
+with col2:
     st.write(f"#### 🔋 **Panel Output:** {round(power_output,0)}")#*panel.efficiency,0)} W")
 
 
