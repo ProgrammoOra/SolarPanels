@@ -11,8 +11,6 @@ import requests
 
 om_api_key = st.secrets['om_api_key']
 
-
-
 class Panel:
     def __init__(self, tilt, azimuth, area, efficiency):
         self.tilt = tilt
@@ -219,30 +217,66 @@ date_power_output, total_energy = calculate_times_power_and_energy_with_shadow_p
 
 #####  ------- Weather data --------
 
-def get_cloud_cover(latitude, longitude, api_key):
+def get_cloud_cover(times, lat, lon, openweather_api_key, freq="1min", timezone = 'Europe/Rome'): # Added interpolation parameter
     """
-    Fetches real-time cloud cover data from OpenWeatherMap API.
-    
-    Parameters:
-    - latitude: float
-    - longitude: float
-    - api_key: str (Your OpenWeatherMap API key)
-    
-    Returns:
-    - cloud_cover: int (Cloud cover percentage 0-100)
+    Fetches cloud cover for today with specified frequency:
+    - 100% cloudiness for all times before now
+    - Forecast data from OpenWeather until end of day (handling 3-hour intervals)
+    times = series of one day times
     """
-    url = f"https://api.openweathermap.org/data/2.5/weather?lat={latitude}&lon={longitude}&appid={om_api_key}&units=metric"
+
+    now = datetime.datetime.now(timezone)
+    # limit times to the cloud available data: now + 5 days
+    times = times[(times >= now.replace(second=0, microsecond=0)) & (times<= now + datetime.timedelta(days=5)) ]
     
-    response = requests.get(url)
+    if times.empty:
+        return False
+
+    full_day_times = times        
+    full_day_df = pd.DataFrame(index=full_day_times)
+
+    print(f"\n full_day_df pre actual data troncato?:\n {full_day_df})") #############
+    print()
     
-    if response.status_code == 200:
-        data = response.json()
-        cloud_cover = data['clouds']['all']  # Cloud cover percentage
-        #print(f"Cloud Cover: {cloud_cover}% ({data['weather'][0]['description']})")
-        return cloud_cover
-    else:
-        print("Error fetching weather data:", response.status_code, response.text)
-        return None
+    ##### rimosse perchè ora partiamo minimo da times
+    # before_now_times = full_day_times[full_day_times < now] ######## <= end_of_day] ########now]
+    #full_day_df.loc[before_now_times, 'cloud_cover'] = np.nan
+
+    # Get Actual Weather
+    openweather_url = f"https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={openweather_api_key}&units=metric"
+    response = requests.get(openweather_url).json()
+
+    actual_data = []
+    actual_time = now
+    actual_data.append({'datetime': actual_time, 'cloud_cover': response['clouds']['all']})
+
+    actual_df = pd.DataFrame(actual_data)
+    actual_df.set_index('datetime', inplace=True)
+    full_day_df = full_day_df.combine_first(actual_df)
+    
+    # --------  Get forecast
+    
+    openweather_url = f"https://api.openweathermap.org/data/2.5/forecast?lat={lat}&lon={lon}&appid={openweather_api_key}&units=metric"
+    response = requests.get(openweather_url).json()
+
+    forecast_data = []
+    for entry in response['list']:
+        forecast_time = datetime.datetime.utcfromtimestamp(entry['dt']).replace(tzinfo=datetime.timezone.utc)
+        forecast_time = forecast_time.astimezone(timezone)
+        forecast_data.append({'datetime': forecast_time, 'cloud_cover': entry['clouds']['all']})
+
+    forecast_df = pd.DataFrame(forecast_data)
+    forecast_df.set_index('datetime', inplace=True)
+    
+    full_day_df = full_day_df.combine_first(forecast_df)
+    
+    full_day_df['cloud_cover'] = full_day_df['cloud_cover'].interpolate(method='linear', limit_direction='both')
+    full_day_df = full_day_df.reindex(full_day_times)
+
+    return full_day_df
+
+
+        
 
 
 def adjust_irradiance_for_clouds_and_shadow(times, clearsky, cloud_cover, solar_zenith, shadow_profile):
@@ -269,14 +303,17 @@ def adjust_irradiance_for_clouds_and_shadow(times, clearsky, cloud_cover, solar_
     if shadow_times.empty:
         return np.array([]), 0.0
 
-    dni_adjusted = clearsky['dni'] * (1 - 1.1 * cloud_fraction)
+    clearsky = clearsky.reindex(times)
+    cloud_fraction = cloud_fraction.reindex(times)
+    
+    dni_adjusted = clearsky['dni'] * ((1 - 1.1 * cloud_fraction['cloud_cover'])) 
     dni_adjusted = np.clip(dni_adjusted, 0, None)  # Ensure DNI is not negative
     
     # Applica il profilo d'ombra ai dati di irraggiamento
     dni_adjusted[shadow_times['Shadowed']] = 0  
     
     # Adjust GHI based on empirical attenuation model
-    ghi_adjusted = clearsky['ghi'] * (1 - 0.75 * cloud_fraction)
+    ghi_adjusted = clearsky['ghi'] * (1.05 - 0.75 * cloud_fraction['cloud_cover']) ##### modificato 1 - 0.75.. in 1.05 -0.75... per aumentare l'impatto del GHI
 
     # Compute DHI from adjusted GHI and DNI
     dhi_adjusted = ghi_adjusted - dni_adjusted * np.cos(np.radians(solar_zenith))
@@ -304,9 +341,9 @@ def calculate_power_output(location, times, panel, api_key, shadow_profile):
     clearsky = location.get_clearsky(times)
 
     # Fetch real-time cloud cover
-    cloud_cover = get_cloud_cover(location.latitude, location.longitude, api_key)
+    cloud_cover = get_cloud_cover(times, location.latitude, location.longitude, api_key, timezone = timezone)
     if cloud_cover is None:
-        cloud_cover = 0  # Default to clear sky if API fails
+        cloud_cover['cloud_cover'] = 0  # Default to clear sky if API fails ########### mettere un NA e non mostrare il grafico
 
     # Adjust irradiance
     dni_adj, ghi_adj, dhi_adj = adjust_irradiance_for_clouds_and_shadow(
@@ -334,6 +371,7 @@ def calculate_power_output(location, times, panel, api_key, shadow_profile):
     return power_output
 
 power_output_weather = calculate_power_output(location, time, panel, om_api_key, shadow_profile)
+
 power_output_w = power_output_weather[0]
 
 time_shadowed = calculate_if_times_are_shadowed_with_shadow_profile(
@@ -341,6 +379,12 @@ time_shadowed = calculate_if_times_are_shadowed_with_shadow_profile(
         location=location,
         shadow_profile=shadow_profile
     )
+
+# calculate power output taking into account cloudiness
+
+date_power_output_w = calculate_power_output(location, times, panel, om_api_key, shadow_profile)
+
+
 
 # --- Display time Results ---
 st.write("## ⏰ Time Results")
@@ -357,7 +401,9 @@ with col2:
 col1, col2 = st.columns(2)
 with col1:
     st.write(f"#### 🌑 Sun in shadows?     {'✅ No' if not time_shadowed['Shadowed'][0] else '❌ Yes'}")
-    st.write(f"#### CL Clowd cover:     {get_cloud_cover(location.latitude, location.longitude, om_api_key)}%") ### qui solo per testare output
+    actual_cloud_cover =  get_cloud_cover(time, location.latitude, location.longitude, om_api_key, timezone = timezone).iloc[0]['cloud_cover']
+    st.write(f"#### CL Clowd cover:        {int(actual_cloud_cover)}%") ### qui solo per testare output 
+    ##### ottimizzabile dal calcolo del giorno?
 with col2:
     st.write(f"#### 🔋 **ClearSky PV Output:** {int(actual_power_output[0])}W")
     st.write(f"#### 🔋 **Actual PV Output:** {int(round(power_output_w,0))}W")
@@ -374,6 +420,30 @@ st.write("### 🔋 ClearSky power available ")
 # Create the chart
 fig = px.line(
     date_power_output, x=date_power_output.index, y='poa_global',
+    labels={'x': 'Day Time', 'poa_global': 'W'},
+    color_discrete_sequence=['green']  # Optional: change dot color
+)
+
+fig.update_traces(line=dict(width=5))  # Adjust the width as needed
+
+fig.update_xaxes(
+    range=[
+        pd.Timestamp(f"{selected_date} 06:00"),  # Start at 6 AM
+        pd.Timestamp(f"{selected_date} 22:00")   # End at 10 PM
+    ],
+    tickformat='%H:%M',  # Format labels as HH:MM (e.g., "06:00", "08:00")
+    dtick=3600 * 2 * 1000  # Show a tick every 2 hours
+)
+
+# Display the chart in Streamlit
+st.plotly_chart(fig)
+
+# --- Visualization ---
+st.write("### 🔋 Cloudy power available ")
+
+# Create the chart
+fig = px.line(
+    date_power_output_w, x=date_power_output_w.index, y='poa_global',
     labels={'x': 'Day Time', 'poa_global': 'W'},
     color_discrete_sequence=['green']  # Optional: change dot color
 )
