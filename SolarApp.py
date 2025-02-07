@@ -11,6 +11,7 @@ import requests
 
 om_api_key = st.secrets['om_api_key']
 
+
 class Panel:
     def __init__(self, tilt, azimuth, area, efficiency):
         self.tilt = tilt
@@ -381,10 +382,20 @@ time_shadowed = calculate_if_times_are_shadowed_with_shadow_profile(
     )
 
 # calculate power output taking into account cloudiness
-
 date_power_output_w = calculate_power_output(location, times, panel, om_api_key, shadow_profile)
 
+# combine in a single dataframe
+#date_power_output_w.index = pd.to_datetime(date_power_output_w.index) ##################
+date_power_output_w = date_power_output_w.rename_axis('datetime')
 
+# Ensure date_power_output is a DataFrame
+date_power_output = date_power_output.to_frame()  # Convert Series to DataFrame if needed
+
+# Reindex date_power_output_w to align with date_power_output index
+date_power_output['poa_global_w'] = date_power_output_w
+
+
+#date_power_output['poa_global_w'] = date_power_output_w
 
 # --- Display time Results ---
 st.write("## ⏰ Time Results")
@@ -414,38 +425,15 @@ st.write(f"## 📅  Day Results for: {selected_date}")
 
 st.write(f"#### Total available energy: {total_energy}kWh")
 
-# --- Visualization ---
-st.write("### 🔋 ClearSky power available ")
-
-# Create the chart
-fig = px.line(
-    date_power_output, x=date_power_output.index, y='poa_global',
-    labels={'x': 'Day Time', 'poa_global': 'W'},
-    color_discrete_sequence=['green']  # Optional: change dot color
-)
-
-fig.update_traces(line=dict(width=5))  # Adjust the width as needed
-
-fig.update_xaxes(
-    range=[
-        pd.Timestamp(f"{selected_date} 06:00"),  # Start at 6 AM
-        pd.Timestamp(f"{selected_date} 22:00")   # End at 10 PM
-    ],
-    tickformat='%H:%M',  # Format labels as HH:MM (e.g., "06:00", "08:00")
-    dtick=3600 * 2 * 1000  # Show a tick every 2 hours
-)
-
-# Display the chart in Streamlit
-st.plotly_chart(fig)
 
 # --- Visualization ---
-st.write("### 🔋 Cloudy power available ")
+st.write("### 🔋 ClearSky and Cloudy  power available ")
 
-# Create the chart
 fig = px.line(
-    date_power_output_w, x=date_power_output_w.index, y='poa_global',
-    labels={'x': 'Day Time', 'poa_global': 'W'},
-    color_discrete_sequence=['green']  # Optional: change dot color
+    date_power_output, x=date_power_output.index, 
+    y=['poa_global', 'poa_global_w'],  # Pass both columns here
+    labels={'x': 'Day Time', 'poa_global': 'W', 'poa_global_w': 'W with cloud forecast'},  # Customize labels for clarity
+    color_discrete_sequence=['green', 'blue']  # Different colors for the two series
 )
 
 fig.update_traces(line=dict(width=5))  # Adjust the width as needed
