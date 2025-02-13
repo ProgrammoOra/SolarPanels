@@ -27,4 +27,3 @@ STANDARD_PANEL_EFFICIENCY = 14.2
 
 # Frequency for daily time serie
 STANDARD_STEP = '1min'
-

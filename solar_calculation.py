@@ -54,7 +54,9 @@ def calculate_if_times_are_shadowed_with_shadow_profile(times, location, shadow_
 
     return shadowed_df
 
-# --- Calculate power output for give times, shadow profile and weather data
+#####  --- Calculate power output for give times, shadow profile and weather data ---
+
+# --- Calculate adjusted irradiance fo clouds and shadow ---
 
 def adjust_irradiance_for_clouds_and_shadow(times, location, clearsky, cloud_cover, solar_zenith, shadow_profile):
     """
@@ -88,7 +90,7 @@ def adjust_irradiance_for_clouds_and_shadow(times, location, clearsky, cloud_cov
     dni_adjusted = np.clip(dni_adjusted, 0, None)  # Ensure DNI is not negative
     
     # Applica il profilo d'ombra ai dati di irraggiamento
-    dni_adjusted[shadow_times['shadowed']] = 0  
+    # dni_adjusted[shadow_times['shadowed']] = 0  #posizione originale
     
     # Adjust GHI based on empirical attenuation model
     ghi_adjusted = clearsky['ghi'] * (1.0 - 0.75 * cloud_fraction) ##### modificato 1 - 0.75.. in 1.05 -0.75... per aumentare l'impatto del GHI
@@ -97,8 +99,12 @@ def adjust_irradiance_for_clouds_and_shadow(times, location, clearsky, cloud_cov
     dhi_adjusted = ghi_adjusted - dni_adjusted * np.cos(np.radians(solar_zenith))
     dhi_adjusted = np.clip(dhi_adjusted, 0, None)
 
+    # Tiene in considerazione la condizione d'ombra
+    dni_adjusted[shadow_times['shadowed']] = 0
+
     return dni_adjusted, ghi_adjusted, dhi_adjusted
 
+# --- Single function to calculate power for times sequence in all condition of cloud and shadow ---
 
 def calculate_power_output(times, selected_location, selected_panel, shadow_profile, weather_data):
     """
@@ -122,7 +128,7 @@ def calculate_power_output(times, selected_location, selected_panel, shadow_prof
     # check cloud cover data 
     cloud_cover = weather_data['times_cloud_cover']['cloud_cover']
     if cloud_cover is None:
-        cloud_cover = 0  # Default to clear sky if API fails ########### mettere un NA e non mostrare il grafico
+        cloud_cover = nan  # Default to clear sky if API fails ########### mettere un NA e non mostrare il grafico
 
     # Adjust irradiance
     dni_adj, ghi_adj, dhi_adj = adjust_irradiance_for_clouds_and_shadow(
@@ -154,6 +160,8 @@ def calculate_power_output(times, selected_location, selected_panel, shadow_prof
 
     return power_output
 
+# ---  prepare data to be fed
+
 def calculate_clearsky_power_output(times, selected_location, selected_panel, shadow_profile, weather_data):
     """
     Calculates solar panel power output considering clearsky (cloud cover = 0).
@@ -179,3 +187,31 @@ def calculate_clearsky_power_output(times, selected_location, selected_panel, sh
     clearsky_power_output = calculate_power_output(times, selected_location, selected_panel, shadow_profile, clearsky_weather_data)
     
     return clearsky_power_output
+
+def calculate_weather_power_output(times, selected_location, selected_panel, shadow_profile, weather_data):
+    """
+    Calculates solar panel power output considering weather data availability (cloud cover = 0).
+    
+    - times: Pandas DatetimeIndex
+    - selected_location: 
+    - selected_panel: Dictionary with 'tilt', 'azimuth', 'area', 'efficiency'
+    - shadow_profile
+    - weather_data
+
+    Returns: Power output series
+    """
+
+    # weather_times = weather_data['times_cloud_cover'][times]
+
+    #if 
+    return calculate_power_output(times, selected_location, selected_panel, shadow_profile, weather_data)
+
+# --- calculate total power give times and power data
+
+def calculate_energy_for_times(times, step, power_data):
+
+    # Calcola l'energia totale in kWh
+    step_minutes = pd.Timedelta(step).total_seconds() / 60  # Step in minuti
+    total_energy = round(power_data[times].sum() * (step_minutes / 60 / 1000), 1)  # kWh
+
+    return total_energy
