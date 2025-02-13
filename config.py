@@ -3,6 +3,10 @@ from streamlit import secrets
 # OpenWeather API
 OPENWEATHER_API_KEY = secrets['om_api_key']
 
+# Shelly API
+SHELLY_API_KEY = secrets['shelly_api_key']
+SHELLY_DEVICE_ID = secrets['shelly_device_id']
+
 # Timezone
 ITALY_TIMEZONE = 'Europe/Rome' # 'Europe/Rome' gestisce il cambio fuso orario diversamente da 'CET'
 
