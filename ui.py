@@ -81,10 +81,10 @@ def get_solar_panel(std_panel_tilt=STANDARD_PANEL_TILT,
                     std_panel_efficiency=STANDARD_PANEL_EFFICIENCY):
     st.sidebar.header("🔋 Configurazione PV")
     panel = {
-        'tilt': st.sidebar.slider("Inclinazione del pannello (°)", 0, 90, 5),
-        'azimuth': st.sidebar.slider("Azimut del pannello (°)", 0, 360, 152),
-        'area': st.sidebar.number_input("Area del pannello (m²)", value=6.25),
-        'efficiency': st.sidebar.slider("Efficienza del pannello (%)", 0.0, 100.0, 14.2) / 100.0
+        'tilt': st.sidebar.slider("Inclinazione del pannello (°)", 0, 90, std_panel_tilt),
+        'azimuth': st.sidebar.slider("Azimut del pannello (°)", 0, 360, std_panel_azimuth),
+        'area': st.sidebar.number_input("Area del pannello (m²)", value = std_panel_area),
+        'efficiency': st.sidebar.slider("Efficienza del pannello (%)", 0.0, 100.0, std_panel_efficiency) / 100.0
     }
     return panel
 
